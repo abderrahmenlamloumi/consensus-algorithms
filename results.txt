@@ -1,0 +1,5 @@
+Commit: fc305730229aad7317c93f27dfaf422c165ff033
+Date: 23/10/2026
+Lab01: 14 success 2 fail (04,08)
+Lab02 RAFT: 31 success 4 fail (00,05,08)
+Lab02 BRACHA: 28 success 7 fail (00,05,08)
