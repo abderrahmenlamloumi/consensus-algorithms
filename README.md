@@ -1,126 +1,65 @@
-# DistSysLab
+# Distributed Systems Labs: Coordination and Broadcast
 
-README for a distributed systems laboratory/workspace.
+This directory contains two Go-based distributed-systems exercises. Each process runs as a separate operating-system process and communicates with its peers over local TCP sockets. The C wrappers in the Go programs make the socket calls visible to the supplied `LD_PRELOAD` hook.
 
-## Overview
+## Contents
 
-DistSysLab is a hands-on repository for exploring distributed systems concepts, building fault-tolerant services, and experimenting with communication, coordination, and consistency patterns in real code.
+- [`Lab01/`](Lab01/README.md): a distributed mutual-exclusion lock ordered by Lamport timestamps and process IDs.
+- [`Lab02/`](Lab02/README.md): simplified Raft-style and Bracha reliable-broadcast protocols.
+- [`results.txt`](results.txt): a recorded test-results snapshot. Its test names and totals do not match the test files currently present, so treat it as historical rather than as a current test report.
 
-This project is designed to be easy to clone, run, and extend, with a structure that encourages experimentation and collaboration through pull requests, issues, and code reviews.
+Both labs require Linux, Go with cgo enabled, a C compiler, Perl, and the standard C dynamic-loader library. Run the commands below from the corresponding lab directory.
 
-## Features
+## Lab01: Distributed Lock
 
-- Distributed systems experiments and prototypes
-- Message-passing and coordination patterns
-- Scalable and fault-tolerant design exercises
-- Easy local setup for development and testing
-- GitHub-friendly workflow for issues, PRs, and discussion
+Lab01 implements a fair distributed lock. Processes broadcast timestamped lock requests, maintain a total order by `(Lamport timestamp, process ID)`, acknowledge requests, and announce releases. A process enters its critical section when its request is first in that order and it has received the required acknowledgements.
 
-## Repository structure
+`critical.c` records lock-entry and release events in `log.txt`. `hook.c` supplies the socket tracing shim. The three fixtures in `Lab01/tests/` exercise competing lock requests and explicit wait dependencies.
+
+```sh
+cd Lab01
+make             # Build critical, hook.so, and process
+make check       # Build and run all tests
+make log_reset   # Clear log.txt
+make clean       # Remove generated executables and shared libraries
+```
+
+To run one fixture after building:
+
+```sh
+./run.pl ./tests/test01
+```
+
+The runner checks the output format, timestamp ordering, balanced lock/release events, lock counts, and declared wait constraints. Acquisition order can vary when the input permits more than one valid order.
+
+## Lab02: Reliable Broadcast
+
+Lab02 provides two protocol modes, selected with `PROTOCOL`:
+
+- `RAFT`: process 0 proposes to the configured peers, collects acknowledgements, delivers after its acknowledgement threshold, and sends commits.
+- `BRACHA`: processes exchange ECHO and VOTE messages and count distinct senders per value against the Bracha thresholds, with $f = \lfloor (N-1)/3 \rfloor$.
+
+The input file starts with the process count and then contains broadcast commands:
 
 ```text
-.
-├── README.md
-├── src/
-├── tests/
-├── docs/
-├── scripts/
-├── Makefile
-└── LICENSE
+N
+BCAST value recipient_count
 ```
 
-Update this section to match the actual project layout as the repository evolves.
+For example, `BCAST 42 3` starts a broadcast of value `42` to the first three peer IDs after process 0 (subject to the process-count limit). Values are encoded as 32-bit unsigned fields on the wire, so use integers in the range `0` through `4294967295` for the fixtures supported by this implementation.
 
-## Getting started
-
-### Prerequisites
-
-- Git
-- A supported runtime or compiler for the project
-- Any project-specific dependencies listed in the setup instructions
-
-### Clone the repository
-
-```bash
-git clone https://github.com/<your-username>/distsyslab.git
-cd distsyslab
+```sh
+cd Lab02
+make             # Build process
+make check_raft  # Run every fixture in RAFT mode
+make check_bracha # Run every fixture in BRACHA mode
+make clean       # Remove the generated process executable
 ```
 
-### Install dependencies
+The test runner builds the Lab01 socket hook as a prerequisite. To run an individual fixture:
 
-```bash
-# Replace with the appropriate install command for this project
-# e.g. make install
-# e.g. pip install -r requirements.txt
-# e.g. npm install
+```sh
+make
+make -C ../Lab01 hook.so
+env PROTOCOL=BRACHA ./run.pl ./tests/test01
 ```
-
-### Run the project
-
-```bash
-# Replace with the actual entry point for the application or experiments
-# e.g. make run
-# e.g. python app.py
-# e.g. go run ./cmd/server
-```
-
-## Development
-
-### Run tests
-
-```bash
-# Replace with the project's test command
-# e.g. make test
-# e.g. pytest
-# e.g. go test ./...
-```
-
-### Lint and format
-
-```bash
-# Replace with the project's lint/format commands
-# e.g. make lint
-# e.g. black .
-# e.g. gofmt -w .
-```
-
-## Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create a feature branch:
-   ```bash
-   git checkout -b feature/my-improvement
-   ```
-3. Make your changes and commit them:
-   ```bash
-   git commit -m "Add my improvement"
-   ```
-4. Push to your fork:
-   ```bash
-   git push origin feature/my-improvement
-   ```
-5. Open a pull request on GitHub
-
-Please keep changes focused, document any important setup steps, and include tests when applicable.
-
-## Roadmap
-
-- Define the project architecture and core abstractions
-- Add core distributed system experiments
-- Improve documentation and examples
-- Add automated tests and CI checks
-- Extend functionality with new scenarios and optimizations
-
-## Issues and support
-
-Use GitHub Issues to report bugs, request features, or ask questions.
-
-## License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-## Project status
-
-This repository is under active development. Contributions, suggestions, and feedback are encouraged.
